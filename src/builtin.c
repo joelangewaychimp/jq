@@ -376,6 +376,23 @@ static jv f_utf8bytelength(jq_state *jq, jv input) {
 
 #define CHARS_ALPHANUM "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 
+static jv shell_escape(jv input) {
+  assert(jv_get_kind(input) == JV_KIND_STRING);
+  char *shell_chars="\\[]{} \t\r\n$!&;*'\"";
+  jv ret = jv_string("");
+  const char* i = jv_string_value(input);
+  const char* end = i + jv_string_length_bytes(jv_copy(input));
+  const char* cstart = i;
+  while(i = strpbrk(cstart = i, shell_chars)) {
+    ret = jv_string_append_buf(ret, cstart, i - cstart);
+    ret = jv_string_append_str(ret, "\\");
+  }
+  ret = jv_string_append_buf(ret, cstart, end);
+  jv_free(input);
+  return ret;
+}
+
+
 static jv escape_string(jv input, const char* escapings) {
 
   assert(jv_get_kind(input) == JV_KIND_STRING);
@@ -510,9 +527,7 @@ static jv f_format(jq_state *jq, jv input, jv fmt) {
         break;
 
       case JV_KIND_STRING: {
-        line = jv_string_append_str(line, "'");
-        line = jv_string_concat(line, escape_string(x, "''\\''\0"));
-        line = jv_string_append_str(line, "'");
+        line = jv_string_concat(line, shell_escape(x));
         break;
       }
 
